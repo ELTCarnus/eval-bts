@@ -162,30 +162,49 @@
     <script>
         // Configuration de la connexion Supabase directe
         const SUPABASE_URL = "https://fmzkjueoxhmzrjoqkuao.supabase.co"; 
-        const SUPABASE_KEY = "sb_publishable_WtPDClBL9JstNehbupF84Q_1kXpkCW_";
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // REMPLACEZ LA CHAÎNE CI-DESSOUS PAR VOTRE VRAIE CLÉ "ANON" DE SUPABASE
+        const SUPABASE_KEY = "sb_publishable_WtPDClBL9JstNehbupF84Q_1kXpkCW_"; 
+        
+        let _supabase;
 
         // Au chargement complet de l'application
         document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('eval-date').valueAsDate = new Date();
-            initApp();
+            try {
+                _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                initApp();
+            } catch (err) {
+                alert("Erreur critique d'initialisation de Supabase : " + err.message);
+            }
         });
 
         async function initApp() {
-            await loadPoles();
-            await loadStudents();
-            await loadScenarios();
+            try {
+                await loadPoles();
+                await loadStudents();
+                await loadScenarios();
+            } catch (err) {
+                console.error("Erreur au chargement des données initiales :", err);
+            }
         }
 
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.replace('block', 'hidden'));
-            document.getElementById(tabId).classList.replace('hidden', 'block');
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('block');
+                el.classList.add('hidden');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById(tabId).classList.add('block');
         }
 
         // --- GESTION DES ÉLÈVES ---
         async function loadStudents() {
+            if (!_supabase) return;
             const { data, error } = await _supabase.from('students').select('*').order('last_name');
-            if (error) return console.error(error);
+            if (error) {
+                console.error("Erreur lors de la récupération des élèves :", error);
+                return;
+            }
             
             const list = document.getElementById('students-list');
             const selectEval = document.getElementById('eval-student');
@@ -195,7 +214,7 @@
             selectEval.innerHTML = '<option value="">-- Sélectionner --</option>';
             selectDash.innerHTML = '';
 
-            data.forEach(s => {
+            data?.forEach(s => {
                 list.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 text-sm">
                     <td class="p-3 font-semibold uppercase">${s.last_name}</td>
                     <td class="p-3">${s.first_name}</td>
@@ -214,11 +233,17 @@
             const last = document.getElementById('stu-last').value;
             const first = document.getElementById('stu-first').value;
 
-            const { error } = await _supabase.from('students').insert([{ first_name: first, last_name: last }]);
-            if (error) alert("Code d'erreur : " + error.code + " | Message : " error.message);
-            else {
-                document.getElementById('student-form').reset();
-                loadStudents();
+            try {
+                const { data, error } = await _supabase.from('students').insert([{ first_name: first, last_name: last }]);
+                if (error) {
+                    alert("Supabase a refusé l'insertion !\nCode : " + error.code + "\nMessage : " + error.message);
+                } else {
+                    document.getElementById('student-form').reset();
+                    await loadStudents();
+                    alert("Élève ajouté avec succès !");
+                }
+            } catch (catchErr) {
+                alert("Erreur JavaScript locale lors de l'envoi : " + catchErr.message);
             }
         }
 
@@ -233,7 +258,7 @@
         async function loadPoles() {
             const { data } = await _supabase.from('poles').select('*').order('code');
             const select = document.getElementById('sc-pole');
-            select.innerHTML = '';
+            if(select) select.innerHTML = '';
             data?.forEach(p => {
                 select.innerHTML += `<option value="${p.id}">${p.code} - ${p.name}</option>`;
             });
@@ -246,24 +271,22 @@
             const container = document.getElementById('scenarios-list');
             const selectEval = document.getElementById('eval-scenario');
             
-            container.innerHTML = '';
-            selectEval.innerHTML = '<option value="">-- Choisir un scénario --</option>';
+            if(container) container.innerHTML = '';
+            if(selectEval) selectEval.innerHTML = '<option value="">-- Choisir un scénario --</option>';
 
-            data.forEach(sc => {
-                container.innerHTML += `
-                <div class="bg-gray-50 p-4 rounded-md border border-gray-200 relative">
-                    <span class="absolute top-4 right-4 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">${sc.poles?.code || 'Aucun'}</span>
-                    <h3 class="font-bold text-gray-900">${sc.title}</h3>
-                    <p class="text-sm text-gray-600 mt-1"><strong>Contexte :</strong> ${sc.context || '/'}</p>
-                    <p class="text-sm text-gray-600"><strong>Problématique :</strong> ${sc.problematic || '/'}</p>
-                    <div class="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-                        ${sc.material ? `<span class="bg-gray-200 px-2 py-0.5 rounded">📦 Matériel: ${sc.material}</span>` : ''}
-                        ${sc.space ? `<span class="bg-gray-200 px-2 py-0.5 rounded">📍 Espace: ${sc.space}</span>` : ''}
-                        ${sc.sector ? `<span class="bg-gray-200 px-2 py-0.5 rounded">🏢 Secteur: ${sc.sector}</span>` : ''}
-                    </div>
-                </div>`;
-                
-                selectEval.innerHTML += `<option value="${sc.id}" data-pole="${sc.pole_id}">${sc.title}</option>`;
+            data?.forEach(sc => {
+                if(container) {
+                    container.innerHTML += `
+                    <div class="bg-gray-50 p-4 rounded-md border border-gray-200 relative">
+                        <span class="absolute top-4 right-4 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">${sc.poles?.code || 'Aucun'}</span>
+                        <h3 class="font-bold text-gray-900">${sc.title}</h3>
+                        <p class="text-sm text-gray-600 mt-1"><strong>Contexte :</strong> ${sc.context || '/'}</p>
+                        <p class="text-sm text-gray-600"><strong>Problématique :</strong> ${sc.problematic || '/'}</p>
+                    </div>`;
+                }
+                if(selectEval) {
+                    selectEval.innerHTML += `<option value="${sc.id}" data-pole="${sc.pole_id}">${sc.title}</option>`;
+                }
             });
         }
 
@@ -295,23 +318,24 @@
             const poleId = selectedOpt.getAttribute('data-pole');
 
             if (!select.value || !poleId) {
-                zone.classList.replace('block', 'hidden');
+                zone.classList.remove('block');
+                zone.classList.add('hidden');
                 return;
             }
 
-            // Récupérer les compétences -> critères -> indicateurs liés au pôle du scénario choisi
             const { data: tasks } = await _supabase.from('tasks').select('id').eq('pole_id', poleId);
-            const taskIds = tasks.map(t => t.id);
+            const taskIds = tasks?.map(t => t.id) || [];
 
             const { data: comps } = await _supabase.from('competences').select('id, code, name').in('task_id', taskIds);
-            const compIds = comps.map(c => c.id);
+            const compIds = comps?.map(c => c.id) || [];
 
             const { data: criteria } = await _supabase.from('criteria').select('*, competences(code)').in('competence_id', compIds);
 
             container.innerHTML = '';
             if(!criteria || criteria.length === 0) {
                 container.innerHTML = '<p class="text-sm text-yellow-600 italic">Aucun critère enregistré dans le référentiel Supabase pour ce pôle.</p>';
-                zone.classList.replace('hidden', 'block');
+                zone.classList.remove('hidden');
+                zone.classList.add('block');
                 return;
             }
 
@@ -319,7 +343,7 @@
                 container.innerHTML += `
                 <div class="p-4 bg-gray-50 rounded border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <span class="bg-gray-200 text-gray-700 text-xs font-bold px-1.5 py-0.5 rounded mr-2">${crit.competences.code}</span>
+                        <span class="bg-gray-200 text-gray-700 text-xs font-bold px-1.5 py-0.5 rounded mr-2">${crit.competences?.code || ''}</span>
                         <span class="text-sm font-medium">${crit.name}</span>
                     </div>
                     <div class="flex gap-2 crit-row" data-criterion-id="${crit.id}">
@@ -338,7 +362,8 @@
                     </div>
                 </div>`;
             });
-            zone.classList.replace('hidden', 'block');
+            zone.classList.remove('hidden');
+            zone.classList.add('block');
         }
 
         async function submitEvaluation(e) {
@@ -355,11 +380,7 @@
                 const checkedRadio = row.querySelector(`input[name="crit-${criterion_id}"]:checked`);
                 if(checkedRadio) {
                     insertData.push({
-                        student_id,
-                        scenario_id,
-                        evaluation_date,
-                        criterion_id,
-                        level: checkedRadio.value
+                        student_id, scenario_id, evaluation_date, criterion_id, level: checkedRadio.value
                     });
                 }
             });
@@ -370,7 +391,8 @@
                 else {
                     alert("Évaluation enregistrée avec succès !");
                     document.getElementById('eval-form').reset();
-                    document.getElementById('eval-dynamic-zone').classList.replace('block', 'hidden');
+                    document.getElementById('eval-dynamic-zone').classList.remove('block');
+                    document.getElementById('eval-dynamic-zone').classList.add('hidden');
                 }
             }
         }
@@ -383,7 +405,7 @@
             const { data: student } = await _supabase.from('students').select('*').eq('id', studentId).single();
             document.getElementById('dash-student-name').innerText = `Carnet d'évaluations : ${student.last_name.toUpperCase()} ${student.first_name}`;
 
-            const { data: evals, error } = await _supabase.from('evaluations')
+            const { data: evals } = await _supabase.from('evaluations')
                 .select('*, scenarios(title), criteria(*, competences(code)))')
                 .eq('student_id', studentId)
                 .order('evaluation_date', { ascending: false });
