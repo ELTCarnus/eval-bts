@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi Évaluations BTS</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <nav class="bg-blue-600 text-white shadow-md p-4 sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">🎯 Évaluation Cursus BTS</h1>
+            <div class="space-x-2">
+                <button onclick="switchTab('tab-students')" class="px-3 py-2 rounded hover:bg-blue-700 font-medium transition">Élèves</button>
+                <button onclick="switchTab('tab-scenarios')" class="px-3 py-2 rounded hover:bg-blue-700 font-medium transition">Scénarios</button>
+                <button onclick="switchTab('tab-eval')" class="px-3 py-2 rounded hover:bg-blue-700 font-medium transition bg-blue-800">Nouvelle Évaluation</button>
+                <button onclick="switchTab('tab-dashboard')" class="px-3 py-2 rounded hover:bg-blue-700 font-medium transition">Suivi Global</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-6 max-w-6xl">
+
+        <section id="tab-students" class="tab-content block">
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-lg font-semibold mb-4 text-blue-600">Ajouter un élève</h2>
+                    <form id="student-form" onsubmit="addStudent(event)">
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium mb-1">Nom</label>
+                            <input type="text" id="stu-last" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-1">Prénom</label>
+                            <input type="text" id="stu-first" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" required>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded font-medium hover:bg-blue-700 transition">Enregistrer</button>
+                    </form>
+                </div>
+                <div class="md:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-lg font-semibold mb-4">Liste des élèves enregistrés</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 border-b border-gray-200 text-sm font-medium">
+                                    <th class="p-3">Nom</th>
+                                    <th class="p-3">Prénom</th>
+                                    <th class="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="students-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-scenarios" class="tab-content hidden">
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-lg font-semibold mb-4 text-blue-600">Nouveau Scénario</h2>
+                    <form id="scenario-form" onsubmit="addScenario(event)">
+                        <div class="mb-2">
+                            <label class="block text-sm font-medium mb-1">Titre</label>
+                            <input type="text" id="sc-title" class="w-full border border-gray-300 rounded p-2 text-sm" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="block text-sm font-medium mb-1">Contexte</label>
+                            <textarea id="sc-context" class="w-full border border-gray-300 rounded p-2 text-sm rows-2"></textarea>
+                        </div>
+                        <div class="mb-2">
+                            <label class="block text-sm font-medium mb-1">Problématique</label>
+                            <textarea id="sc-problem" class="w-full border border-gray-300 rounded p-2 text-sm rows-2"></textarea>
+                        </div>
+                        <div class="mb-2">
+                            <label class="block text-sm font-medium mb-1">Associer à un Pôle</label>
+                            <select id="sc-pole" class="w-full border border-gray-300 rounded p-2 text-sm"></select>
+                        </div>
+                        <div class="border-t pt-2 mt-2">
+                            <span class="text-xs font-bold text-gray-500 uppercase">Éléments Annexes (Optionnels)</span>
+                            <div class="mt-1 grid grid-cols-1 gap-2">
+                                <input type="text" id="sc-mat" placeholder="Matériel" class="w-full border border-gray-300 rounded p-2 text-sm">
+                                <input type="text" id="sc-space" placeholder="Espace" class="w-full border border-gray-300 rounded p-2 text-sm">
+                                <input type="text" id="sc-sector" placeholder="Secteur" class="w-full border border-gray-300 rounded p-2 text-sm">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded font-medium mt-4 hover:bg-blue-700 text-sm transition">Créer le Scénario</button>
+                    </form>
+                </div>
+                <div class="md:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-lg font-semibold mb-4">Scénarios Actifs</h2>
+                    <div id="scenarios-list" class="space-y-4"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-eval" class="tab-content hidden">
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 max-w-3xl mx-auto">
+                <h2 class="text-xl font-semibold mb-4 text-blue-600 border-b pb-2">Session d'Évaluation</h2>
+                <form id="eval-form" onsubmit="submitEvaluation(event)">
+                    <div class="grid md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Date d'évaluation</label>
+                            <input type="date" id="eval-date" class="w-full border border-gray-300 rounded p-2" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Sélectionner l'Élève</label>
+                            <select id="eval-student" class="w-full border border-gray-300 rounded p-2" required></select>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Scénario de référence</label>
+                        <select id="eval-scenario" onchange="loadScenarioContext()" class="w-full border border-gray-300 rounded p-2" required>
+                            <option value="">-- Choisir un scénario --</option>
+                        </select>
+                    </div>
+
+                    <div id="eval-dynamic-zone" class="hidden border-t pt-4 mt-4">
+                        <h3 class="font-medium text-gray-700 mb-2">Critères de compétences à évaluer :</h3>
+                        <div id="criteria-grading-container" class="space-y-4">
+                            <p class="text-sm text-gray-500 italic">Veuillez d'abord configurer des critères pour les compétences liées à ce pôle.</p>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold mt-6 hover:bg-green-700 transition shadow">Valider et enregistrer les notes</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="tab-dashboard" class="tab-content hidden">
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
+                <h2 class="text-lg font-semibold mb-4">Consulter le dossier d'un élève</h2>
+                <div class="flex gap-4 max-w-md">
+                    <select id="dash-student-select" class="w-full border border-gray-300 rounded p-2"></select>
+                    <button onclick="loadStudentDashboard()" class="bg-blue-600 text-white px-4 py-2 rounded font-medium hover:bg-blue-700 transition">Rechercher</button>
+                </div>
+            </div>
+
+            <div id="dashboard-results" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2" id="dash-student-name">Historique des compétences</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 border-b border-gray-200 text-sm font-medium">
+                                <th class="p-3">Date</th>
+                                <th class="p-3">Scénario</th>
+                                <th class="p-3">Critère évalué</th>
+                                <th class="p-3">Indicateurs</th>
+                                <th class="p-3 text-center">Niveau Obtenu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // Configuration de la connexion Supabase directe
+        const SUPABASE_URL = "https://fmzkjueoxhmzrjoqkuao.supabase.co"; 
+        const SUPABASE_KEY = "sb_publishable_WtPDClBL9JstNehbupF84Q_1kXpkCW_";
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Au chargement complet de l'application
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById('eval-date').valueAsDate = new Date();
+            initApp();
+        });
+
+        async function initApp() {
+            await loadPoles();
+            await loadStudents();
+            await loadScenarios();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.replace('block', 'hidden'));
+            document.getElementById(tabId).classList.replace('hidden', 'block');
+        }
+
+        // --- GESTION DES ÉLÈVES ---
+        async function loadStudents() {
+            const { data, error } = await _supabase.from('students').select('*').order('last_name');
+            if (error) return console.error(error);
+            
+            const list = document.getElementById('students-list');
+            const selectEval = document.getElementById('eval-student');
+            const selectDash = document.getElementById('dash-student-select');
+            
+            list.innerHTML = '';
+            selectEval.innerHTML = '<option value="">-- Sélectionner --</option>';
+            selectDash.innerHTML = '';
+
+            data.forEach(s => {
+                list.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 text-sm">
+                    <td class="p-3 font-semibold uppercase">${s.last_name}</td>
+                    <td class="p-3">${s.first_name}</td>
+                    <td class="p-3 text-right">
+                        <button onclick="deleteStudent(${s.id})" class="text-red-500 hover:underline text-xs">Supprimer</button>
+                    </td>
+                </tr>`;
+                const opt = `<option value="${s.id}">${s.last_name.toUpperCase()} ${s.first_name}</option>`;
+                selectEval.innerHTML += opt;
+                selectDash.innerHTML += opt;
+            });
+        }
+
+        async function addStudent(e) {
+            e.preventDefault();
+            const last = document.getElementById('stu-last').value;
+            const first = document.getElementById('stu-first').value;
+
+            const { error } = await _supabase.from('students').insert([{ first_name: first, last_name: last }]);
+            if (error) alert("Erreur d'insertion");
+            else {
+                document.getElementById('student-form').reset();
+                loadStudents();
+            }
+        }
+
+        async function deleteStudent(id) {
+            if(confirm("Confirmer la suppression de cet élève ?")) {
+                await _supabase.from('students').delete().eq('id', id);
+                loadStudents();
+            }
+        }
+
+        // --- GESTION DES SCÉNARIOS ---
+        async function loadPoles() {
+            const { data } = await _supabase.from('poles').select('*').order('code');
+            const select = document.getElementById('sc-pole');
+            select.innerHTML = '';
+            data?.forEach(p => {
+                select.innerHTML += `<option value="${p.id}">${p.code} - ${p.name}</option>`;
+            });
+        }
+
+        async function loadScenarios() {
+            const { data, error } = await _supabase.from('scenarios').select('*, poles(code)');
+            if (error) return;
+
+            const container = document.getElementById('scenarios-list');
+            const selectEval = document.getElementById('eval-scenario');
+            
+            container.innerHTML = '';
+            selectEval.innerHTML = '<option value="">-- Choisir un scénario --</option>';
+
+            data.forEach(sc => {
+                container.innerHTML += `
+                <div class="bg-gray-50 p-4 rounded-md border border-gray-200 relative">
+                    <span class="absolute top-4 right-4 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">${sc.poles?.code || 'Aucun'}</span>
+                    <h3 class="font-bold text-gray-900">${sc.title}</h3>
+                    <p class="text-sm text-gray-600 mt-1"><strong>Contexte :</strong> ${sc.context || '/'}</p>
+                    <p class="text-sm text-gray-600"><strong>Problématique :</strong> ${sc.problematic || '/'}</p>
+                    <div class="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                        ${sc.material ? `<span class="bg-gray-200 px-2 py-0.5 rounded">📦 Matériel: ${sc.material}</span>` : ''}
+                        ${sc.space ? `<span class="bg-gray-200 px-2 py-0.5 rounded">📍 Espace: ${sc.space}</span>` : ''}
+                        ${sc.sector ? `<span class="bg-gray-200 px-2 py-0.5 rounded">🏢 Secteur: ${sc.sector}</span>` : ''}
+                    </div>
+                </div>`;
+                
+                selectEval.innerHTML += `<option value="${sc.id}" data-pole="${sc.pole_id}">${sc.title}</option>`;
+            });
+        }
+
+        async function addScenario(e) {
+            e.preventDefault();
+            const title = document.getElementById('sc-title').value;
+            const context = document.getElementById('sc-context').value;
+            const problematic = document.getElementById('sc-problem').value;
+            const pole_id = document.getElementById('sc-pole').value;
+            const material = document.getElementById('sc-mat').value;
+            const space = document.getElementById('sc-space').value;
+            const sector = document.getElementById('sc-sector').value;
+
+            await _supabase.from('scenarios').insert([{
+                title, context, problematic, pole_id, material, space, sector
+            }]);
+            
+            document.getElementById('scenario-form').reset();
+            loadScenarios();
+        }
+
+        // --- MOTEUR D'ÉVALUATION DYNAMIQUE ---
+        async function loadScenarioContext() {
+            const select = document.getElementById('eval-scenario');
+            const zone = document.getElementById('eval-dynamic-zone');
+            const container = document.getElementById('criteria-grading-container');
+            
+            const selectedOpt = select.options[select.selectedIndex];
+            const poleId = selectedOpt.getAttribute('data-pole');
+
+            if (!select.value || !poleId) {
+                zone.classList.replace('block', 'hidden');
+                return;
+            }
+
+            // Récupérer les compétences -> critères -> indicateurs liés au pôle du scénario choisi
+            const { data: tasks } = await _supabase.from('tasks').select('id').eq('pole_id', poleId);
+            const taskIds = tasks.map(t => t.id);
+
+            const { data: comps } = await _supabase.from('competences').select('id, code, name').in('task_id', taskIds);
+            const compIds = comps.map(c => c.id);
+
+            const { data: criteria } = await _supabase.from('criteria').select('*, competences(code)').in('competence_id', compIds);
+
+            container.innerHTML = '';
+            if(!criteria || criteria.length === 0) {
+                container.innerHTML = '<p class="text-sm text-yellow-600 italic">Aucun critère enregistré dans le référentiel Supabase pour ce pôle.</p>';
+                zone.classList.replace('hidden', 'block');
+                return;
+            }
+
+            criteria.forEach(crit => {
+                container.innerHTML += `
+                <div class="p-4 bg-gray-50 rounded border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <span class="bg-gray-200 text-gray-700 text-xs font-bold px-1.5 py-0.5 rounded mr-2">${crit.competences.code}</span>
+                        <span class="text-sm font-medium">${crit.name}</span>
+                    </div>
+                    <div class="flex gap-2 crit-row" data-criterion-id="${crit.id}">
+                        <label class="flex items-center gap-1 cursor-pointer bg-red-100 text-red-800 px-3 py-1.5 rounded text-sm font-semibold">
+                            <input type="radio" name="crit-${crit.id}" value="Rouge" required class="accent-red-600"> R
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer bg-orange-100 text-orange-800 px-3 py-1.5 rounded text-sm font-semibold">
+                            <input type="radio" name="crit-${crit.id}" value="Orange" class="accent-orange-600"> O
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded text-sm font-semibold">
+                            <input type="radio" name="crit-${crit.id}" value="Jaune" class="accent-yellow-600"> J
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer bg-green-100 text-green-800 px-3 py-1.5 rounded text-sm font-semibold">
+                            <input type="radio" name="crit-${crit.id}" value="Vert" class="accent-green-600"> V
+                        </label>
+                    </div>
+                </div>`;
+            });
+            zone.classList.replace('hidden', 'block');
+        }
+
+        async function submitEvaluation(e) {
+            e.preventDefault();
+            const student_id = document.getElementById('eval-student').value;
+            const scenario_id = document.getElementById('eval-scenario').value;
+            const evaluation_date = document.getElementById('eval-date').value;
+
+            const rows = document.querySelectorAll('.crit-row');
+            const insertData = [];
+
+            rows.forEach(row => {
+                const criterion_id = row.getAttribute('data-criterion-id');
+                const checkedRadio = row.querySelector(`input[name="crit-${criterion_id}"]:checked`);
+                if(checkedRadio) {
+                    insertData.push({
+                        student_id,
+                        scenario_id,
+                        evaluation_date,
+                        criterion_id,
+                        level: checkedRadio.value
+                    });
+                }
+            });
+
+            if(insertData.length > 0) {
+                const { error } = await _supabase.from('evaluations').insert(insertData);
+                if (error) alert("Erreur de sauvegarde");
+                else {
+                    alert("Évaluation enregistrée avec succès !");
+                    document.getElementById('eval-form').reset();
+                    document.getElementById('eval-dynamic-zone').classList.replace('block', 'hidden');
+                }
+            }
+        }
+
+        // --- DASHBOARD / SUIVI ÉLÈVE ---
+        async function loadStudentDashboard() {
+            const studentId = document.getElementById('dash-student-select').value;
+            if(!studentId) return;
+
+            const { data: student } = await _supabase.from('students').select('*').eq('id', studentId).single();
+            document.getElementById('dash-student-name').innerText = `Carnet d'évaluations : ${student.last_name.toUpperCase()} ${student.first_name}`;
+
+            const { data: evals, error } = await _supabase.from('evaluations')
+                .select('*, scenarios(title), criteria(*, competences(code)))')
+                .eq('student_id', studentId)
+                .order('evaluation_date', { ascending: false });
+
+            const tbody = document.getElementById('dash-table-body');
+            tbody.innerHTML = '';
+
+            if(!evals || evals.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500 italic">Aucune évaluation enregistrée pour cet élève.</td></tr>`;
+            } else {
+                const badgeColor = {
+                    'Rouge': 'bg-red-500 text-white',
+                    'Orange': 'bg-orange-500 text-white',
+                    'Jaune': 'bg-yellow-400 text-gray-900',
+                    'Vert': 'bg-green-500 text-white'
+                };
+
+                evals.forEach(ev => {
+                    tbody.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 text-sm">
+                        <td class="p-3 whitespace-nowrap">${new Date(ev.evaluation_date).toLocaleDateString('fr-FR')}</td>
+                        <td class="p-3 font-medium text-gray-700">${ev.scenarios?.title || 'Non spécifié'}</td>
+                        <td class="p-3">
+                            <span class="bg-gray-100 text-gray-700 font-bold px-1.5 py-0.5 rounded mr-1 text-xs">${ev.criteria?.competences?.code || ''}</span>
+                            ${ev.criteria?.name || ''}
+                        </td>
+                        <td class="p-3 text-xs text-gray-500 italic">Géré via Supabase</td>
+                        <td class="p-3 text-center">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeColor[ev.level]}">${ev.level}</span>
+                        </td>
+                    </tr>`;
+                });
+            }
+            document.getElementById('dashboard-results').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
