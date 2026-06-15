@@ -215,7 +215,7 @@
             const first = document.getElementById('stu-first').value;
 
             const { error } = await _supabase.from('students').insert([{ first_name: first, last_name: last }]);
-            if (error) alert("Erreur d'insertion");
+            if (error) alert("Code d'erreur : " + error.code + " | Message : " error.message);
             else {
                 document.getElementById('student-form').reset();
                 loadStudents();
